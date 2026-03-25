@@ -1,0 +1,5 @@
+flask
+yt-dlp
+boto3
+botocore
+gunicorn
