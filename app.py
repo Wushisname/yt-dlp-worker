@@ -47,9 +47,12 @@ def search_and_download():
             'quiet': True,
         }
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"ytsearch1:{query}", download=True)
-            video_info = info['entries'][0] if 'entries' in info else info
+      with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+    info = ydl.extract_info(f"ytsearch3:{query}", download=False)
+    if not info or 'entries' not in info or len(info['entries']) == 0:
+        return jsonify({'error': 'No results found for query'}), 404
+    video_info = info['entries'][0]
+    ydl.download([video_info['webpage_url']])
 
         s3 = get_s3_client()
         s3.upload_file(output_path, R2_BUCKET, filename)
