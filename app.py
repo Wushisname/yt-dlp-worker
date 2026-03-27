@@ -51,8 +51,18 @@ def search_and_download():
             info = ydl.extract_info(f"ytsearch3:{query}", download=False)
             if not info or 'entries' not in info or len(info['entries']) == 0:
                 return jsonify({'error': 'No results found for query'}), 404
-            video_info = info['entries'][0]
-            ydl.download([video_info['webpage_url']])
+           video_info = None
+            for entry in info['entries']:
+                if entry and entry.get('webpage_url'):
+                    try:
+                        ydl.download([entry['webpage_url']])
+                        video_info = entry
+                        break
+                    except Exception:
+                        continue
+
+            if video_info is None:
+                return jsonify({'error': 'No downloadable videos found'}), 404
 
         s3 = get_s3_client()
         s3.upload_file(output_path, R2_BUCKET, filename)
