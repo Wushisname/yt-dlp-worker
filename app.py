@@ -48,10 +48,11 @@ def search_and_download():
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"ytsearch3:{query}", download=False)
+            info = ydl.extract_info(f"ytsearch5:{query}", download=False)
             if not info or 'entries' not in info or len(info['entries']) == 0:
                 return jsonify({'error': 'No results found for query'}), 404
-           video_info = None
+
+            video_info = None
             for entry in info['entries']:
                 if entry and entry.get('webpage_url'):
                     try:
