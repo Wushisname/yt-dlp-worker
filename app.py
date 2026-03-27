@@ -35,40 +35,48 @@ def search_and_download():
         return jsonify({'error': 'No query provided'}), 400
 
     try:
-        filename = f"{uuid.uuid4()}.mp4"
-        output_path = f"/tmp/{filename}"
-
-        ydl_opts = {
-            'format': 'bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]/best[ext=mp4][height<=720]',
-            'outtmpl': output_path,
-            'noplaylist': True,
-            'match_filter': yt_dlp.utils.match_filter_func(f"duration < {duration_max}"),
-            'default_search': 'ytsearch1',
+        search_opts = {
             'quiet': True,
+            'skip_download': True,
         }
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        with yt_dlp.YoutubeDL(search_opts) as ydl:
             info = ydl.extract_info(f"ytsearch5:{query}", download=False)
-            if not info or 'entries' not in info or len(info['entries']) == 0:
-                return jsonify({'error': 'No results found for query'}), 404
 
-            video_info = None
-            for entry in info['entries']:
-                if entry and entry.get('webpage_url'):
-                    try:
-                        ydl.download([entry['webpage_url']])
-                        video_info = entry
-                        break
-                    except Exception:
-                        continue
+        if not info or 'entries' not in info or len(info['entries']) == 0:
+            return jsonify({'error': 'No results found for query'}), 404
 
-            if video_info is None:
-                return jsonify({'error': 'No downloadable videos found'}), 404
+        video_info = None
+        downloaded_path = None
+
+        for entry in info['entries']:
+            if not entry or not entry.get('webpage_url'):
+                continue
+            try:
+                filename = f"{uuid.uuid4()}.mp4"
+                output_path = f"/tmp/{filename}"
+                download_opts = {
+                    'format': 'bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]/best[ext=mp4][height<=720]',
+                    'outtmpl': output_path,
+                    'noplaylist': True,
+                    'quiet': True,
+                }
+                with yt_dlp.YoutubeDL(download_opts) as ydl2:
+                    ydl2.download([entry['webpage_url']])
+                video_info = entry
+                downloaded_path = output_path
+                break
+            except Exception:
+                if os.path.exists(output_path):
+                    os.remove(output_path)
+                continue
+
+        if video_info is None or downloaded_path is None:
+            return jsonify({'error': 'No downloadable videos found'}), 404
 
         s3 = get_s3_client()
-        s3.upload_file(output_path, R2_BUCKET, filename)
-
-        os.remove(output_path)
+        s3.upload_file(downloaded_path, R2_BUCKET, filename)
+        os.remove(downloaded_path)
 
         r2_url = f"{R2_ENDPOINT}/{R2_BUCKET}/{filename}"
 
