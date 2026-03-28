@@ -35,6 +35,8 @@ def try_download(url, output_path):
         'noplaylist': True,
         'quiet': True,
         'no_warnings': True,
+        'geo_bypass': True,
+        'geo_bypass_country': 'US',
     }
     with yt_dlp.YoutubeDL(download_opts) as ydl:
         ydl.download([url])
@@ -43,7 +45,7 @@ def try_download(url, output_path):
 def search_and_download():
     data = request.json
     query = data.get('query')
-    duration_max = data.get('duration_max', 60)
+    duration_max = data.get('duration_max', 120)
 
     if not query:
         return jsonify({'error': 'No query provided'}), 400
@@ -54,6 +56,8 @@ def search_and_download():
             'no_warnings': True,
             'skip_download': True,
             'ignoreerrors': True,
+            'geo_bypass': True,
+            'geo_bypass_country': 'US',
         }
 
         with yt_dlp.YoutubeDL(search_opts) as ydl:
@@ -81,7 +85,7 @@ def search_and_download():
                     downloaded_path = output_path
                     break
             except (DownloadError, Exception):
-                if os.path.exists(output_path):
+                if 'output_path' in locals() and os.path.exists(output_path):
                     os.remove(output_path)
                 continue
 
@@ -115,7 +119,7 @@ def download_to_r2():
         return jsonify({'error': 'url and filename required'}), 400
 
     try:
-        response = req.get(url, stream=True, timeout=30)
+        response = req.get(url, stream=True, timeout=60)
         output_path = f"/tmp/{filename}"
 
         with open(output_path, 'wb') as f:
