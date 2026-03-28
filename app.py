@@ -4,6 +4,7 @@ from yt_dlp.utils import DownloadError
 import os
 import uuid
 import boto3
+import requests as req
 from botocore.client import Config
 
 app = Flask(__name__)
@@ -12,6 +13,7 @@ R2_ENDPOINT = os.environ.get('R2_ENDPOINT')
 R2_ACCESS_KEY = os.environ.get('R2_ACCESS_KEY')
 R2_SECRET_KEY = os.environ.get('R2_SECRET_KEY')
 R2_BUCKET = os.environ.get('R2_BUCKET')
+R2_PUBLIC_URL = 'https://pub-beee60fdd331469db2333a3036230d02.r2.dev'
 
 def get_s3_client():
     return boto3.client(
@@ -90,7 +92,7 @@ def search_and_download():
         s3.upload_file(downloaded_path, R2_BUCKET, filename)
         os.remove(downloaded_path)
 
-    r2_url = f"https://pub-beee60fdd331469db2333a3036230d02.r2.dev/{filename}"
+        r2_url = f"{R2_PUBLIC_URL}/{filename}"
 
         return jsonify({
             'success': True,
@@ -102,6 +104,7 @@ def search_and_download():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 @app.route('/download-to-r2', methods=['POST'])
 def download_to_r2():
     data = request.json
@@ -112,10 +115,9 @@ def download_to_r2():
         return jsonify({'error': 'url and filename required'}), 400
 
     try:
-        import requests as req
         response = req.get(url, stream=True, timeout=30)
         output_path = f"/tmp/{filename}"
-        
+
         with open(output_path, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
@@ -124,11 +126,12 @@ def download_to_r2():
         s3.upload_file(output_path, R2_BUCKET, filename)
         os.remove(output_path)
 
-        r2_url = f"{R2_ENDPOINT}/{R2_BUCKET}/{filename}"
+        r2_url = f"{R2_PUBLIC_URL}/{filename}"
         return jsonify({'success': True, 'url': r2_url, 'filename': filename})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
