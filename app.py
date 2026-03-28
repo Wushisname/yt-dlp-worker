@@ -90,7 +90,7 @@ def search_and_download():
         s3.upload_file(downloaded_path, R2_BUCKET, filename)
         os.remove(downloaded_path)
 
-        r2_url = f"{R2_ENDPOINT}/{R2_BUCKET}/{filename}"
+    r2_url = f"https://pub-beee60fdd331469db2333a3036230d02.r2.dev/{filename}"
 
         return jsonify({
             'success': True,
