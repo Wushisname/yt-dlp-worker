@@ -102,7 +102,33 @@ def search_and_download():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+@app.route('/download-to-r2', methods=['POST'])
+def download_to_r2():
+    data = request.json
+    url = data.get('url')
+    filename = data.get('filename')
 
+    if not url or not filename:
+        return jsonify({'error': 'url and filename required'}), 400
+
+    try:
+        import requests as req
+        response = req.get(url, stream=True, timeout=30)
+        output_path = f"/tmp/{filename}"
+        
+        with open(output_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+        s3 = get_s3_client()
+        s3.upload_file(output_path, R2_BUCKET, filename)
+        os.remove(output_path)
+
+        r2_url = f"{R2_ENDPOINT}/{R2_BUCKET}/{filename}"
+        return jsonify({'success': True, 'url': r2_url, 'filename': filename})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
